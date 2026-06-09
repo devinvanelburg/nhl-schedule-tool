@@ -159,9 +159,10 @@ function getColor(v, min, max) {
 function updateTable() {
   const selected = teamSelect.value === "None" ? null : teamSelect.value;
 
-  let diagVals = [];
-  let offVals = [];
+  let selectedVals = []; // row/col heatmap
+  let otherVals = [];    // everything else
 
+  // First pass: compute values + categorize
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
     const c = td.dataset.col;
@@ -173,48 +174,52 @@ function updateTable() {
     td.textContent = val;
     td.dataset.value = val;
 
-    if (r === c || r === selected || c === selected) {
-      diagVals.push(val);
+    if (!selected) {
+      otherVals.push(val);
+    } else if (r === selected && c === selected) {
+      // self → ignore
+    } else if (r === selected || c === selected) {
+      selectedVals.push(val);
     } else {
-      offVals.push(val);
+      otherVals.push(val);
     }
   });
 
-  let dMin = Math.min(...diagVals);
-  let dMax = Math.max(...diagVals);
-  let oMin = Math.min(...offVals);
-  let oMax = Math.max(...offVals);
+  // Compute scales
+  let sMin = Math.min(...selectedVals);
+  let sMax = Math.max(...selectedVals);
+  let oMin = Math.min(...otherVals);
+  let oMax = Math.max(...otherVals);
 
+  // Second pass: apply colors + styles
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
     const c = td.dataset.col;
     const val = Number(td.dataset.value);
 
-    // ✅ Selected self cell → WHITE
-    if (selected && r === selected && c === selected) {
-      td.style.backgroundColor = "white";
-      td.style.border = "3px solid black";
-      return;
-    }
-
-    // ✅ Selected row/column
-    if (selected && (r === selected || c === selected)) {
-      td.style.backgroundColor = getColor(val, dMin, dMax);
-      td.style.border = "2px solid black";
-      return;
-    }
-
-    // ✅ Diagonal
-    if (r === c) {
-      td.style.backgroundColor = getColor(val, dMin, dMax);
-    } else {
-      td.style.backgroundColor = getColor(val, oMin, oMax);
-    }
-
+    // ✅ DEFAULT
     td.style.border = "1px solid #ccc";
-  });
 
-  updateRanking(selected);
+    if (selected) {
+
+      // ✅ 1. SELF CELL → WHITE
+      if (r === selected && c === selected) {
+        td.style.backgroundColor = "white";
+        td.style.border = "3px solid black";
+        return;
+      }
+
+      // ✅ 2. SELECTED ROW/COLUMN
+      if (r === selected || c === selected) {
+        td.style.backgroundColor = getColor(val, sMin, sMax);
+        td.style.border = "2px solid black";
+        return;
+      }
+    }
+
+    // ✅ 3. ALL OTHER CELLS
+    td.style.backgroundColor = getColor(val, oMin, oMax);
+  });
 }
 
 //////////////////////////////////////////////////
