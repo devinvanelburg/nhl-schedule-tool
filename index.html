@@ -3,13 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <title>NHL Schedule Compatibility Tool</title>
+
+  <!-- ✅ Correct CSS link -->
   <link rel="stylesheet" href="style.css">
+  
+  <style>
+    /* simple layout (in case your CSS is minimal) */
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    .controls {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+
+    .table-container {
+      overflow: auto;
+      max-width: 75%;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    td, th {
+      border: 1px solid #ccc;
+      padding: 4px;
+      text-align: center;
+      font-size: 10px;
+    }
+
+    th {
+      background-color: #f0f0f0;
+      position: sticky;
+      top: 0;
+    }
+
+    .sidebar {
+      min-width: 180px;
+    }
+
+    .sidebar ul {
+      padding-left: 20px;
+    }
+  </style>
 </head>
 
 <body>
 
 <h1>NHL Schedule Compatibility</h1>
 
+<!-- ✅ CONTROLS -->
 <div class="controls">
   <label>Season:</label>
   <select id="seasonSelect">
@@ -28,12 +80,23 @@
   <select id="endDate"></select>
 </div>
 
+<!-- ✅ MAIN LAYOUT -->
 <div class="container">
+
+  <!-- ✅ TABLE -->
   <div class="table-container">
     <table id="matrix"></table>
   </div>
+
+  <!-- ✅ RANKING SIDEBAR -->
+  <div class="sidebar">
+    <h3>Compatibility Ranking</h3>
+    <ul id="ranking"></ul>
+  </div>
+
 </div>
 
+<!-- ✅ CRITICAL: correct script loading -->
 <script src="script.js"></script>
 
 </body>
