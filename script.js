@@ -1,52 +1,116 @@
-const teams = [const "ANA","BOS","BUF","CGY","CAR","CHI","COL","CBJ","DAL",
+const teams = [
+  "ANA","BOS","BUF","CGY","CAR","CHI","COL","CBJ","DAL",
   "DET","EDM","FLA","LAK","MIN","MTL","NSH","NJD","NYI","NYR",
-  "OTT","PHI","PIT","SJS","SEA","STL","TBL","TOR","VAN","VGK","WSH","WPG","ARI"
+  "OTT","PHI","PIT","SJS","SEA","STL","TBL","TOR","VAN","VGK","WSH","WPG","UTA"
 ];
+
+const teamMap = {
+  "Anaheim Ducks": "ANA",
+  "Boston Bruins": "BOS",
+  "Buffalo Sabres": "BUF",
+  "Calgary Flames": "CGY",
+  "Carolina Hurricanes": "CAR",
+  "Chicago Blackhawks": "CHI",
+  "Colorado Avalanche": "COL",
+  "Columbus Blue Jackets": "CBJ",
+  "Dallas Stars": "DAL",
+  "Detroit Red Wings": "DET",
+  "Edmonton Oilers": "EDM",
+  "Florida Panthers": "FLA",
+  "Los Angeles Kings": "LAK",
+  "Minnesota Wild": "MIN",
+  "Montreal Canadiens": "MTL",
+  "Nashville Predators": "NSH",
+  "New Jersey Devils": "NJD",
+  "New York Islanders": "NYI",
+  "New York Rangers": "NYR",
+  "Ottawa Senators": "OTT",
+  "Philadelphia Flyers": "PHI",
+  "Pittsburgh Penguins": "PIT",
+  "San Jose Sharks": "SJS",
+  "Seattle Kraken": "SEA",
+  "St. Louis Blues": "STL",
+  "Tampa Bay Lightning": "TBL",
+  "Toronto Maple Leafs": "TOR",
+  "Vancouver Canucks": "VAN",
+  "Vegas Golden Knights": "VGK",
+  "Washington Capitals": "WSH",
+  "Winnipeg Jets": "WPG",
+  "Utah Mammoth": "UTA"
+};
 
 const teamSelect = document.getElementById("teamSelect");
 const seasonSelect = document.getElementById("seasonSelect");
+const startSelect = document.getElementById("startDate");
+const endSelect = document.getElementById("endDate");
 const matrix = document.getElementById("matrix");
 const mostList = document.getElementById("most");
 const leastList = document.getElementById("least");
 
+let fullSchedule = [];
 let schedule = {};
+let allDates = [];
 
 //////////////////////////////////////////////////
-// MOCK DATA (replace later with real schedule)
+// LOAD CSV
 //////////////////////////////////////////////////
-function loadMockSeason() {
-  schedule = {};
-  teams.forEach(team => {
-    let days = new Set();
-    while (days.size < 84) {
-      days.add(Math.floor(Math.random() * 200));
-    }
-    schedule[team] = days;
+
+async function loadCSV() {
+  const response = await fetch("NHL schedule 2025-26.csv");
+  const text = await response.text();
+
+  const lines = text.trim().split("\n");
+
+  fullSchedule = lines.map(line => {
+    const [date, teamA, teamB] = line.split(",");
+    return { date, teamA, teamB };
   });
+
+  allDates = [...new Set(fullSchedule.map(g => g.date))].sort();
+
+  populateDateDropdowns();
+  buildScheduleFromDateRange();
 }
-loadMockSeason();
 
 //////////////////////////////////////////////////
-// UI SETUP
+// DATE FILTER
 //////////////////////////////////////////////////
 
-teams.slice().sort().forEach(team => {
-  let opt = document.createElement("option");
-  opt.value = team;
-  opt.textContent = team;
-  teamSelect.appendChild(opt);
-});
+function populateDateDropdowns() {
+  startSelect.innerHTML = "";
+  endSelect.innerHTML = "";
 
-// Season dropdown (extensible)
-["2025-26"].forEach(season => {
-  let opt = document.createElement("option");
-  opt.value = season;
-  opt.textContent = season;
-  seasonSelect.appendChild(opt);
-});
+  allDates.forEach(date => {
+    startSelect.add(new Option(date, date));
+    endSelect.add(new Option(date, date));
+  });
+
+  startSelect.selectedIndex = 0;
+  endSelect.selectedIndex = allDates.length - 1;
+}
+
+function buildScheduleFromDateRange() {
+  const start = startSelect.value;
+  const end = endSelect.value;
+
+  schedule = {};
+  teams.forEach(t => schedule[t] = new Set());
+
+  fullSchedule.forEach(game => {
+    if (game.date < start || game.date > end) return;
+
+    const tA = teamMap[game.teamA];
+    const tB = teamMap[game.teamB];
+
+    if (tA) schedule[tA].add(game.date);
+    if (tB) schedule[tB].add(game.date);
+  });
+
+  updateTable();
+}
 
 //////////////////////////////////////////////////
-// TABLE BUILD
+// TABLE
 //////////////////////////////////////////////////
 
 function createTable() {
@@ -63,17 +127,17 @@ function createTable() {
 
   matrix.appendChild(header);
 
-  teams.forEach(rowTeam => {
+  teams.forEach(r => {
     let tr = document.createElement("tr");
 
-    let rowHeader = document.createElement("th");
-    rowHeader.textContent = rowTeam;
-    tr.appendChild(rowHeader);
+    let th = document.createElement("th");
+    th.textContent = r;
+    tr.appendChild(th);
 
-    teams.forEach(colTeam => {
+    teams.forEach(c => {
       let td = document.createElement("td");
-      td.dataset.row = rowTeam;
-      td.dataset.col = colTeam;
+      td.dataset.row = r;
+      td.dataset.col = c;
       tr.appendChild(td);
     });
 
@@ -82,7 +146,7 @@ function createTable() {
 }
 
 //////////////////////////////////////////////////
-// CORE MATH
+// MATH + HEATMAP
 //////////////////////////////////////////////////
 
 function unionSize(...sets) {
@@ -91,30 +155,17 @@ function unionSize(...sets) {
   return u.size;
 }
 
-//////////////////////////////////////////////////
-// HEATMAP COLORING
-//////////////////////////////////////////////////
-
-function getColor(value, min, max) {
-  let ratio = (value - min) / (max - min || 1);
-
-  // Green gradient
+function getColor(v, min, max) {
+  let ratio = (v - min) / (max - min || 1);
   let g = Math.floor(200 * ratio);
   let r = 255 - g;
-  let b = 100;
-
-  return `rgb(${r},${g},${b})`;
+  return `rgb(${r},${g},120)`;
 }
-
-//////////////////////////////////////////////////
-// MAIN UPDATE
-//////////////////////////////////////////////////
 
 function updateTable() {
   const selected = teamSelect.value === "None" ? null : teamSelect.value;
 
-  let diagValues = [];
-  let offValues = [];
+  let diag = [], off = [];
 
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
@@ -126,33 +177,24 @@ function updateTable() {
     let val = unionSize(...sets);
     td.textContent = val;
 
-    if (r === c) {
-      diagValues.push(val);
-    } else {
-      offValues.push(val);
-    }
-
     td.dataset.value = val;
+
+    if (r === c) diag.push(val);
+    else off.push(val);
   });
 
-  // Compute separate scales
-  let diagMin = Math.min(...diagValues);
-  let diagMax = Math.max(...diagValues);
+  let dMin = Math.min(...diag), dMax = Math.max(...diag);
+  let oMin = Math.min(...off), oMax = Math.max(...off);
 
-  let offMin = Math.min(...offValues);
-  let offMax = Math.max(...offValues);
-
-  // Apply colors
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
-    const c = td.dataset.col;
     const val = Number(td.dataset.value);
 
-    if (r === c) {
-      td.style.backgroundColor = getColor(val, diagMin, diagMax);
-    } else {
-      td.style.backgroundColor = getColor(val, offMin, offMax);
-    }
+    let color = (td.dataset.row === td.dataset.col)
+      ? getColor(val, dMin, dMax)
+      : getColor(val, oMin, oMax);
+
+    td.style.backgroundColor = color;
   });
 
   updateSidebar(selected);
@@ -166,50 +208,39 @@ function updateSidebar(selected) {
   let results = teams.map(team => {
     let sets = [schedule[team]];
     if (selected) sets.push(schedule[selected]);
-
-    return {
-      team,
-      value: unionSize(...sets)
-    };
+    return { team, value: unionSize(...sets) };
   });
 
-  // Sort descending
-  let sorted = results.slice().sort((a, b) => b.value - a.value);
+  let sorted = results.slice().sort((a,b)=>b.value-a.value);
 
-  // MOST (no restriction)
   mostList.innerHTML = "";
-  sorted.slice(0, 5).forEach(x => {
-    let li = document.createElement("li");
-    li.textContent = `${x.team}: ${x.value}`;
-    mostList.appendChild(li);
+  sorted.slice(0,5).forEach(x=>{
+    mostList.innerHTML += `<li>${x.team}: ${x.value}</li>`;
   });
 
-  // LEAST (exclude selected team)
   leastList.innerHTML = "";
-  let filtered = selected
-    ? sorted.filter(x => x.team !== selected)
-    : sorted;
+  let filtered = selected ? sorted.filter(x=>x.team!==selected) : sorted;
 
-  filtered.slice(-5).forEach(x => {
-    let li = document.createElement("li");
-    li.textContent = `${x.team}: ${x.value}`;
-    leastList.appendChild(li);
+  filtered.slice(-5).forEach(x=>{
+    leastList.innerHTML += `<li>${x.team}: ${x.value}</li>`;
   });
 }
-
-//////////////////////////////////////////////////
-// EVENTS
-//////////////////////////////////////////////////
-
-teamSelect.addEventListener("change", updateTable);
-seasonSelect.addEventListener("change", () => {
-  loadMockSeason(); // later load real data per season
-  updateTable();
-});
 
 //////////////////////////////////////////////////
 // INIT
 //////////////////////////////////////////////////
 
+teams.slice().sort().forEach(t => {
+  teamSelect.add(new Option(t,t));
+});
+
+["2025-26"].forEach(s => {
+  seasonSelect.add(new Option(s,s));
+});
+
+teamSelect.addEventListener("change", updateTable);
+startSelect.addEventListener("change", buildScheduleFromDateRange);
+endSelect.addEventListener("change", buildScheduleFromDateRange);
+
 createTable();
-updateTable();
+loadCSV();
