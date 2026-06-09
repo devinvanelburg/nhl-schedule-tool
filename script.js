@@ -67,23 +67,19 @@ let allDates = [];
 //////////////////////////////////////////////////
 
 async function loadCSV() {
-  const response = await fetch("NHL schedule 2025-26.csv");
-  const text = await response.text();
+  const res = await fetch("NHL schedule 2025-26.csv");
+  const text = await res.text();
 
   const lines = text.split(/\r?\n/).filter(l => l.trim());
 
-  fullSchedule = lines.map(line => {
-    const parts = line.split(",");
-    if (parts.length !== 3) return null;
-
+  fullSchedule = lines.map(l => {
+    const [date,a,b] = l.split(",");
     return {
-      date: parts[0].trim(),
-      a: parts[1].trim(),
-      b: parts[2].trim()
+      date: date.trim(),
+      a: a.trim(),
+      b: b.trim()
     };
-  }).filter(x => x !== null);
-
-  console.log("Loaded rows:", fullSchedule.length);
+  });
 
   allDates = [...new Set(fullSchedule.map(g => g.date))].sort();
 
@@ -122,20 +118,14 @@ function buildSchedule() {
   fullSchedule.forEach(g => {
     if (g.date < start || g.date > end) return;
 
-    const tA = teamMap[g.a];
-    const tB = teamMap[g.b];
+    let tA = teamMap[g.a];
+    let tB = teamMap[g.b];
 
-    if (!tA || !tB) {
-      console.warn("Mapping failed:", g);
-      return;
-    }
+    if (!tA || !tB) return;
 
     schedule[tA].add(g.date);
     schedule[tB].add(g.date);
   });
-
-  console.log("Team day counts:");
-  teams.forEach(t => console.log(t, schedule[t].size));
 
   updateTable();
 }
@@ -144,16 +134,16 @@ function buildSchedule() {
 // UNION
 //////////////////////////////////////////////////
 
-function unionSize(a, b, c) {
-  const s = new Set();
-  if (a) a.forEach(x => s.add(x));
-  if (b) b.forEach(x => s.add(x));
-  if (c) c.forEach(x => s.add(x));
+function unionSize(a,b,c){
+  let s = new Set();
+  if(a) a.forEach(x => s.add(x));
+  if(b) b.forEach(x => s.add(x));
+  if(c) c.forEach(x => s.add(x));
   return s.size;
 }
 
 //////////////////////////////////////////////////
-// HEATMAP COLOR
+// HEATMAP
 //////////////////////////////////////////////////
 
 function heatColor(v, min, max) {
@@ -164,7 +154,7 @@ function heatColor(v, min, max) {
 }
 
 //////////////////////////////////////////////////
-// TABLE CREATION
+// TABLE
 //////////////////////////////////////////////////
 
 function createTable() {
@@ -200,19 +190,17 @@ function createTable() {
 }
 
 //////////////////////////////////////////////////
-// MAIN UPDATE (3-ZONE HEATMAP)
+// UPDATE TABLE (WORKING HEATMAP)
 //////////////////////////////////////////////////
 
 function updateTable() {
   const selected = teamSelect.value === "None" ? null : teamSelect.value;
 
-  let selectedVals = [];
-  let otherVals = [];
+  let vals = [];
 
-  // PASS 1: compute values
   document.querySelectorAll("#matrix td").forEach(td => {
-    const r = td.dataset.r;
-    const c = td.dataset.c;
+    let r = td.dataset.r;
+    let c = td.dataset.c;
 
     let val = unionSize(
       schedule[r],
@@ -222,52 +210,27 @@ function updateTable() {
 
     td.textContent = val;
     td.dataset.val = val;
-
-    if (selected) {
-      if (r === selected && c === selected) {
-        // skip self
-      } else if (r === selected || c === selected) {
-        selectedVals.push(val);
-      } else {
-        otherVals.push(val);
-      }
-    } else {
-      otherVals.push(val);
-    }
+    vals.push(val);
   });
 
-  const sMin = selectedVals.length ? Math.min(...selectedVals) : 0;
-  const sMax = selectedVals.length ? Math.max(...selectedVals) : 1;
-  const oMin = otherVals.length ? Math.min(...otherVals) : 0;
-  const oMax = otherVals.length ? Math.max(...otherVals) : 1;
+  let min = Math.min(...vals);
+  let max = Math.max(...vals);
 
-  // PASS 2: apply styling
   document.querySelectorAll("#matrix td").forEach(td => {
-    const r = td.dataset.r;
-    const c = td.dataset.c;
-    const val = Number(td.dataset.val);
+    let r = td.dataset.r;
+    let c = td.dataset.c;
+    let val = Number(td.dataset.val);
 
+    td.style.backgroundColor = heatColor(val, min, max);
     td.style.border = "1px solid #ccc";
 
-    if (selected) {
-
-      // SELF CELL
-      if (r === selected && c === selected) {
-        td.style.backgroundColor = "white";
-        td.style.border = "3px solid black";
-        return;
-      }
-
-      // ROW / COLUMN
-      if (r === selected || c === selected) {
-        td.style.backgroundColor = heatColor(val, sMin, sMax);
-        td.style.border = "2px solid black";
-        return;
-      }
+    if(selected && r === selected && c === selected){
+      td.style.backgroundColor = "white";
+      td.style.border = "3px solid black";
     }
-
-    // OTHER CELLS
-    td.style.backgroundColor = heatColor(val, oMin, oMax);
+    else if(selected && (r === selected || c === selected)){
+      td.style.border = "2px solid black";
+    }
   });
 }
 
@@ -275,7 +238,7 @@ function updateTable() {
 // INIT
 //////////////////////////////////////////////////
 
-teams.sort().forEach(t => teamSelect.add(new Option(t, t)));
+teams.sort().forEach(t => teamSelect.add(new Option(t,t)));
 
 teamSelect.addEventListener("change", updateTable);
 startSelect.addEventListener("change", buildSchedule);
@@ -285,4 +248,3 @@ createTable();
 loadCSV();
 
 });
-``
