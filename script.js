@@ -62,7 +62,7 @@ let schedule = {};
 let allDates = [];
 
 //////////////////////////////////////////////////
-// LOAD CSV (ROBUST)
+// LOAD CSV
 //////////////////////////////////////////////////
 
 async function loadCSV() {
@@ -77,8 +77,8 @@ async function loadCSV() {
 
     return {
       date: parts[0].trim(),
-      teamA: parts[1],
-      teamB: parts[2]
+      teamA: parts[1].replace(/\u00A0/g, " ").trim(),
+      teamB: parts[2].replace(/\u00A0/g, " ").trim()
     };
   }).filter(x => x !== null);
 
@@ -115,28 +115,18 @@ function buildScheduleFromDateRange() {
   fullSchedule.forEach(game => {
     if (game.date < start || game.date > end) return;
 
-    // ✅ CLEAN STRINGS PROPERLY
-    const cleanA = game.teamA.replace(/\s+/g, " ").trim();
-    const cleanB = game.teamB.replace(/\s+/g, " ").trim();
+    const tA = teamMap[game.teamA];
+    const tB = teamMap[game.teamB];
 
-    const tA = teamMap[cleanA];
-    const tB = teamMap[cleanB];
-
-    // ✅ SAFETY + DEBUG
-    if (!tA || !tB) {
-      console.warn("Mapping failed:", cleanA, cleanB);
-      return;
-    }
+    if (!tA || !tB) return;
 
     schedule[tA].add(game.date);
     schedule[tB].add(game.date);
   });
 
-  // ✅ SANITY CHECK
-  console.log("TEAM GAME DAYS:");
-  teams.forEach(t => {
-    console.log(t, schedule[t].size);
-  });
+  // ✅ DEBUG CHECK
+  console.log("TEAM DAY COUNTS:");
+  teams.forEach(t => console.log(t, schedule[t].size));
 
   updateTable();
 }
@@ -178,17 +168,20 @@ function createTable() {
 }
 
 //////////////////////////////////////////////////
-// MATH
+// SAFE UNION
 //////////////////////////////////////////////////
 
 function unionSize(...sets) {
   let u = new Set();
-  sets.forEach(s => s.forEach(v => u.add(v)));
+  sets.forEach(s => {
+    if (!s) return;
+    s.forEach(v => u.add(v));
+  });
   return u.size;
 }
 
 //////////////////////////////////////////////////
-// COLOR
+// COLOR SCALE
 //////////////////////////////////////////////////
 
 function getColor(v, min, max) {
@@ -199,7 +192,7 @@ function getColor(v, min, max) {
 }
 
 //////////////////////////////////////////////////
-// UPDATE TABLE (3 HEATMAP SYSTEM)
+// UPDATE TABLE (FIXED)
 //////////////////////////////////////////////////
 
 function updateTable() {
@@ -208,22 +201,28 @@ function updateTable() {
   let selectedVals = [];
   let otherVals = [];
 
-  // FIRST PASS
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
     const c = td.dataset.col;
 
-    let sets = [schedule[r], schedule[c]];
-    if (selected) sets.push(schedule[selected]);
+    let sets = [
+      schedule[r] || new Set(),
+      schedule[c] || new Set()
+    ];
+
+    if (selected) {
+      sets.push(schedule[selected] || new Set());
+    }
 
     let val = unionSize(...sets);
+
     td.textContent = val;
     td.dataset.value = val;
 
     if (!selected) {
       otherVals.push(val);
     } else if (r === selected && c === selected) {
-      // self cell → ignore
+      // ignore self cell
     } else if (r === selected || c === selected) {
       selectedVals.push(val);
     } else {
@@ -231,18 +230,18 @@ function updateTable() {
     }
   });
 
-  let sMin = Math.min(...selectedVals);
-  let sMax = Math.max(...selectedVals);
-  let oMin = Math.min(...otherVals);
-  let oMax = Math.max(...otherVals);
+  // ✅ SAFE MIN/MAX
+  const sMin = selectedVals.length ? Math.min(...selectedVals) : 0;
+  const sMax = selectedVals.length ? Math.max(...selectedVals) : 1;
 
-  // SECOND PASS
+  const oMin = otherVals.length ? Math.min(...otherVals) : 0;
+  const oMax = otherVals.length ? Math.max(...otherVals) : 1;
+
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
     const c = td.dataset.col;
     const val = Number(td.dataset.value);
 
-    // reset
     td.style.border = "1px solid #ccc";
 
     if (selected) {
@@ -262,7 +261,7 @@ function updateTable() {
       }
     }
 
-    // ✅ OTHER CELLS
+    // ✅ ALL OTHER CELLS
     td.style.backgroundColor = getColor(val, oMin, oMax);
   });
 
@@ -284,10 +283,10 @@ function updateRanking(selected) {
     };
   });
 
-  let sorted = results.sort((a, b) => b.value - a.value);
+  results.sort((a, b) => b.value - a.value);
 
   rankingList.innerHTML = "";
-  sorted.forEach((x, i) => {
+  results.forEach((x, i) => {
     rankingList.innerHTML += `<li>${i+1}. ${x.team}: ${x.value}</li>`;
   });
 }
