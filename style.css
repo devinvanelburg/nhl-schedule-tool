@@ -1,0 +1,32 @@
+body {
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  display: flex;
+}
+
+.table-container {
+  overflow: auto;
+  max-width: 75%;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+td, th {
+  border: 1px solid #ccc;
+  padding: 4px;
+  text-align: center;
+  font-size: 10px;
+}
+
+.sidebar {
+  margin-left: 20px;
+}
+
+h3 {
+  margin-top: 20px;
+}
+``
