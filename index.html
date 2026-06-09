@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta  <title>NHL Schedule Compatibility Tool</title>  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <title>NHL Schedule Compatibility Tool</title>
 
-  <!-- ✅ CSS LINK (important) -->
-  <link rel="stylesheet" href="style.css" />
+  <!-- ✅ Correct CSS link -->
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
 <h1>NHL Schedule Compatibility</h1>
 
-<div class="controls">
-  <label>Season:</label>
-  <select id="seasonSelect"></select>
-
-  <label>Team 1:</label>
+<div>
+  <label>Team:</label>
   <select id="teamSelect">
     <option value="None">None</option>
   </select>
@@ -27,22 +25,14 @@
   <select id="endDate"></select>
 </div>
 
-<div class="container">
+<br>
 
-  <!-- ✅ MAIN MATRIX -->
-  <div class="table-container">
-    <table id="matrix"></table>
-  </div>
-
-  <!-- ✅ SIDEBAR (UPDATED) -->
-  <div class="sidebar">
-    <h3>Compatibility Ranking</h3>
-    <ul id="most"></ul>
-  </div>
-
+<div>
+  <!-- ✅ THIS MUST EXIST -->
+  <table id="matrix"></table>
 </div>
 
-<!-- ✅ SCRIPT LINK (important) -->
+<!-- ✅ ✅ Correct script loading -->
 <script src="script.js"></script>
 
 </body>
