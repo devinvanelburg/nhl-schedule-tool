@@ -1,38 +1,47 @@
-body {
-  font-family: Arial, sans-serif;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NHL Schedule Compatibility Tool</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
 
-.controls {
-  margin-bottom: 15px;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+<body>
 
-.container {
-  display: flex;
-}
+<h1>NHL Schedule Compatibility</h1>
 
-.table-container {
-  overflow: auto;
-  max-width: 75%;
-}
+<div class="controls">
+  <label>Season:</label>
+  <select id="seasonSelect"></select>
 
-table {
-  border-collapse: collapse;
-}
+  <label>Team 1:</label>
+  <select id="teamSelect">
+    <option value="None">None</option>
+  </select>
 
-td, th {
-  border: 1px solid #ccc;
-  padding: 4px;
-  text-align: center;
-  font-size: 10px;
-}
+  <label>Start Date:</label>
+  <select id="startDate"></select>
 
-th {
-  background-color: #f0f0f0;
-}
+  <label>End Date:</label>
+  <select id="endDate"></select>
+</div>
 
-.sidebar {
-  margin-left: 20px;
-}
+<div class="container">
+
+  <div class="table-container">
+    <table id="matrix"></table>
+  </div>
+
+  <div class="sidebar">
+    <h3>Most Active Teams</h3>
+    <ul id="most"></ul>
+
+    <h3>Least Active Teams</h3>
+    <ul id="least"></ul>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
