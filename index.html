@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>NHL Schedule Compatibility Tool</title>
-
-  <!-- ✅ CORRECT CSS LINK -->
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -13,6 +11,11 @@
 <h1>NHL Schedule Compatibility</h1>
 
 <div class="controls">
+  <label>Season:</label>
+  <select id="seasonSelect">
+    <option value="2025-26">2025-26</option>
+  </select>
+
   <label>Team:</label>
   <select id="teamSelect">
     <option value="None">None</option>
@@ -27,12 +30,10 @@
 
 <div class="container">
   <div class="table-container">
-    <!-- ✅ THIS TABLE IS REQUIRED -->
     <table id="matrix"></table>
   </div>
 </div>
 
-<!-- ✅ CORRECT SCRIPT LINK (THIS FIXES YOUR ERROR) -->
 <script src="script.js"></script>
 
 </body>
