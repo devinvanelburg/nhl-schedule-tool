@@ -1,9 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-//////////////////////////////////////////////////
-// CONSTANTS
-//////////////////////////////////////////////////
-
 const teams = [
   "ANA","BOS","BUF","CGY","CAR","CHI","COL","CBJ","DAL",
   "DET","EDM","FLA","LAK","MIN","MTL","NSH","NJD","NYI","NYR",
@@ -45,69 +41,52 @@ const teamMap = {
   "Utah Mammoth": "UTA"
 };
 
-//////////////////////////////////////////////////
-// DOM
-//////////////////////////////////////////////////
-
 const teamSelect = document.getElementById("teamSelect");
 const startSelect = document.getElementById("startDate");
 const endSelect = document.getElementById("endDate");
 const matrix = document.getElementById("matrix");
 
-//////////////////////////////////////////////////
-// DATA
-//////////////////////////////////////////////////
+// populate team dropdown
+teams.slice().sort().forEach(t => {
+  teamSelect.add(new Option(t, t));
+});
 
 let fullSchedule = [];
 let schedule = {};
 let allDates = [];
 
 //////////////////////////////////////////////////
-// LOAD CSV (FIXED)
+// LOAD CSV (simple + reliable)
 //////////////////////////////////////////////////
 
 async function loadCSV() {
   const res = await fetch("NHL schedule 2025-26.csv");
-
-  if (!res.ok) {
-    console.error("CSV failed to load", res.status);
-    return;
-  }
-
   const text = await res.text();
 
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  const lines = text.split("\n");
 
-  fullSchedule = [];
+  fullSchedule = lines.map(line => {
+    const parts = line.trim().split(",");
+    if (parts.length !== 3) return null;
+    return {
+      date: parts[0].trim(),
+      a: parts[1].trim(),
+      b: parts[2].trim()
+    };
+  }).filter(x => x !== null);
 
-  lines.forEach(line => {
-    const parts = line.split(",");
+  console.log("Games:", fullSchedule.length);
 
-    if (parts.length !== 3) {
-      console.warn("Bad row skipped:", line);
-      return;
-    }
-
-    const date = parts[0].trim();
-    const a = parts[1].trim();
-    const b = parts[2].trim();
-
-    fullSchedule.push({ date, a, b });
-  });
-
-  console.log("✅ Parsed games:", fullSchedule.length);
-
-  // ✅ extract unique dates
   allDates = [...new Set(fullSchedule.map(g => g.date))].sort();
 
-  console.log("✅ Unique dates:", allDates.length);
+  console.log("Dates:", allDates.length);
 
   populateDates();
   buildSchedule();
 }
 
 //////////////////////////////////////////////////
-// DATES
+// DATE DROPDOWNS
 //////////////////////////////////////////////////
 
 function populateDates() {
@@ -119,7 +98,6 @@ function populateDates() {
     endSelect.add(new Option(d, d));
   });
 
-  // ✅ set full season range
   startSelect.selectedIndex = 0;
   endSelect.selectedIndex = allDates.length - 1;
 }
@@ -141,42 +119,16 @@ function buildSchedule() {
     const tA = teamMap[g.a];
     const tB = teamMap[g.b];
 
-    if (!tA || !tB) {
-      console.warn("Mapping failed:", g);
-      return;
-    }
+    if (!tA || !tB) return;
 
     schedule[tA].add(g.date);
     schedule[tB].add(g.date);
   });
 
-  console.log("✅ Team day counts:");
+  console.log("Check team sizes:");
   teams.forEach(t => console.log(t, schedule[t].size));
 
   updateTable();
-}
-
-//////////////////////////////////////////////////
-// UNION
-//////////////////////////////////////////////////
-
-function unionSize(a,b,c){
-  const s = new Set();
-  if(a) a.forEach(x => s.add(x));
-  if(b) b.forEach(x => s.add(x));
-  if(c) c.forEach(x => s.add(x));
-  return s.size;
-}
-
-//////////////////////////////////////////////////
-// HEATMAP
-//////////////////////////////////////////////////
-
-function heatColor(v, min, max) {
-  let ratio = (v - min) / (max - min || 1);
-  let g = Math.floor(200 * ratio);
-  let r = 255 - g;
-  return `rgb(${r},${g},120)`;
 }
 
 //////////////////////////////////////////////////
@@ -216,13 +168,23 @@ function createTable() {
 }
 
 //////////////////////////////////////////////////
-// UPDATE TABLE
+// UNION
+//////////////////////////////////////////////////
+
+function unionSize(a,b,c){
+  let s = new Set();
+  a.forEach(x => s.add(x));
+  b.forEach(x => s.add(x));
+  if(c) c.forEach(x => s.add(x));
+  return s.size;
+}
+
+//////////////////////////////////////////////////
+// UPDATE TABLE (WORKING BASE)
 //////////////////////////////////////////////////
 
 function updateTable() {
   const selected = teamSelect.value === "None" ? null : teamSelect.value;
-
-  let vals = [];
 
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.r;
@@ -235,36 +197,12 @@ function updateTable() {
     );
 
     td.textContent = val;
-    td.dataset.val = val;
-    vals.push(val);
-  });
-
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-
-  document.querySelectorAll("#matrix td").forEach(td => {
-    const r = td.dataset.r;
-    const c = td.dataset.c;
-    const val = Number(td.dataset.val);
-
-    td.style.backgroundColor = heatColor(val, min, max);
-
-    if(selected && r===selected && c===selected){
-      td.style.backgroundColor = "white";
-      td.style.border = "3px solid black";
-    } else if(selected && (r===selected || c===selected)){
-      td.style.border = "2px solid black";
-    } else {
-      td.style.border = "1px solid #ccc";
-    }
   });
 }
 
 //////////////////////////////////////////////////
 // INIT
 //////////////////////////////////////////////////
-
-teams.sort().forEach(t => teamSelect.add(new Option(t,t)));
 
 teamSelect.addEventListener("change", updateTable);
 startSelect.addEventListener("change", buildSchedule);
