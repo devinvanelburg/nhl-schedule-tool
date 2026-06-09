@@ -64,7 +64,7 @@ let schedule = {};
 let allDates = [];
 
 //////////////////////////////////////////////////
-// LOAD CSV
+// LOAD CSV (STABLE)
 //////////////////////////////////////////////////
 
 async function loadCSV() {
@@ -76,7 +76,6 @@ async function loadCSV() {
   fullSchedule = lines.map(line => {
     const parts = line.trim().split(",");
     if (parts.length !== 3) return null;
-
     return {
       date: parts[0].trim(),
       a: parts[1].trim(),
@@ -91,7 +90,7 @@ async function loadCSV() {
 }
 
 //////////////////////////////////////////////////
-// DATE DROPDOWNS
+// DATES
 //////////////////////////////////////////////////
 
 function populateDates() {
@@ -146,7 +145,7 @@ function unionSize(a,b,c){
 }
 
 //////////////////////////////////////////////////
-// COLOR
+// HEATMAP COLOR
 //////////////////////////////////////////////////
 
 function heatColor(v, min, max) {
@@ -193,7 +192,7 @@ function createTable() {
 }
 
 //////////////////////////////////////////////////
-// UPDATE TABLE (CORRECT 3-ZONE LOGIC)
+// UPDATE TABLE (FINAL CORRECT LOGIC)
 //////////////////////////////////////////////////
 
 function updateTable() {
@@ -202,7 +201,7 @@ function updateTable() {
   let rowVals = [];
   let otherVals = [];
 
-  // PASS 1
+  // PASS 1: compute values
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.r;
     const c = td.dataset.c;
@@ -216,16 +215,17 @@ function updateTable() {
     td.textContent = val;
     td.dataset.val = val;
 
-    if (!selected) {
-      otherVals.push(val);
-    }
-    else if (r === selected && c === selected) {
-      // skip self
-    }
-    else if (r === selected || c === selected) {
-      rowVals.push(val);
-    }
-    else {
+    if (selected) {
+      if (r === selected && c === selected) {
+        // skip
+      }
+      else if (r === selected || c === selected) {
+        rowVals.push(val);
+      }
+      else {
+        otherVals.push(val);
+      }
+    } else {
       otherVals.push(val);
     }
   });
@@ -236,7 +236,7 @@ function updateTable() {
   const oMin = otherVals.length ? Math.min(...otherVals) : 0;
   const oMax = otherVals.length ? Math.max(...otherVals) : 1;
 
-  // PASS 2
+  // PASS 2: apply heatmap
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.r;
     const c = td.dataset.c;
@@ -246,12 +246,14 @@ function updateTable() {
 
     if (selected) {
 
+      // SELF CELL
       if (r === selected && c === selected) {
         td.style.backgroundColor = "white";
         td.style.border = "3px solid black";
         return;
       }
 
+      // SELECTED ROW/COLUMN
       if (r === selected || c === selected) {
         td.style.backgroundColor = heatColor(val, rMin, rMax);
         td.style.border = "2px solid black";
@@ -259,6 +261,7 @@ function updateTable() {
       }
     }
 
+    // OTHER CELLS
     td.style.backgroundColor = heatColor(val, oMin, oMax);
   });
 
@@ -266,29 +269,32 @@ function updateTable() {
 }
 
 //////////////////////////////////////////////////
-// RANKING
+// RANKING (FIXED)
 //////////////////////////////////////////////////
 
 function updateRanking(selected) {
+
   if (!selected) {
     rankingList.innerHTML = "";
     return;
   }
 
-  let results = teams.map(t => {
+  let results = teams.map(team => {
     return {
-      team: t,
-      value: unionSize(schedule[t], schedule[selected])
+      team: team,
+      value: unionSize(schedule[team], schedule[selected])
     };
   });
 
   results.sort((a,b) => b.value - a.value);
 
-  rankingList.innerHTML = "";
+  let html = "";
 
   results.forEach((x,i) => {
-    rankingList.innerHTML += `<li>${i+1}. ${x.team}: ${x.value}</li>`;
+    html += `<li>${i+1}. ${x.team}: ${x.value}</li>`;
   });
+
+  rankingList.innerHTML = html;
 }
 
 //////////////////////////////////////////////////
