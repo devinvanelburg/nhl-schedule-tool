@@ -62,8 +62,12 @@ async function loadCSV() {
   const lines = text.trim().split("\n");
 
   fullSchedule = lines.map(line => {
-    const [date, teamA, teamB] = line.split(",");
-    return { date, teamA, teamB };
+    const parts = line.split(",");
+    return {
+      date: parts[0].trim(),
+      teamA: parts[1].trim(),
+      teamB: parts[2].trim()
+    };
   });
 
   allDates = [...new Set(fullSchedule.map(g => g.date))].sort();
@@ -101,6 +105,9 @@ function buildScheduleFromDateRange() {
 
     const tA = teamMap[game.teamA];
     const tB = teamMap[game.teamB];
+
+    // Debug (optional)
+    // if (!tA || !tB) console.log("Missing mapping:", game);
 
     if (tA) schedule[tA].add(game.date);
     if (tB) schedule[tB].add(game.date);
@@ -157,8 +164,10 @@ function unionSize(...sets) {
 
 function getColor(v, min, max) {
   let ratio = (v - min) / (max - min || 1);
+
   let g = Math.floor(200 * ratio);
   let r = 255 - g;
+
   return `rgb(${r},${g},120)`;
 }
 
@@ -187,7 +196,6 @@ function updateTable() {
   let oMin = Math.min(...off), oMax = Math.max(...off);
 
   document.querySelectorAll("#matrix td").forEach(td => {
-    const r = td.dataset.row;
     const val = Number(td.dataset.value);
 
     let color = (td.dataset.row === td.dataset.col)
@@ -208,20 +216,26 @@ function updateSidebar(selected) {
   let results = teams.map(team => {
     let sets = [schedule[team]];
     if (selected) sets.push(schedule[selected]);
-    return { team, value: unionSize(...sets) };
+
+    return {
+      team,
+      value: unionSize(...sets)
+    };
   });
 
-  let sorted = results.slice().sort((a,b)=>b.value-a.value);
+  let sorted = results.slice().sort((a, b) => b.value - a.value);
 
   mostList.innerHTML = "";
-  sorted.slice(0,5).forEach(x=>{
+  sorted.slice(0, 5).forEach(x => {
     mostList.innerHTML += `<li>${x.team}: ${x.value}</li>`;
   });
 
   leastList.innerHTML = "";
-  let filtered = selected ? sorted.filter(x=>x.team!==selected) : sorted;
+  let filtered = selected
+    ? sorted.filter(x => x.team !== selected)
+    : sorted;
 
-  filtered.slice(-5).forEach(x=>{
+  filtered.slice(-5).forEach(x => {
     leastList.innerHTML += `<li>${x.team}: ${x.value}</li>`;
   });
 }
@@ -231,11 +245,11 @@ function updateSidebar(selected) {
 //////////////////////////////////////////////////
 
 teams.slice().sort().forEach(t => {
-  teamSelect.add(new Option(t,t));
+  teamSelect.add(new Option(t, t));
 });
 
 ["2025-26"].forEach(s => {
-  seasonSelect.add(new Option(s,s));
+  seasonSelect.add(new Option(s, s));
 });
 
 teamSelect.addEventListener("change", updateTable);
