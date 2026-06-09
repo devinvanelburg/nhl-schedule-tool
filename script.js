@@ -52,23 +52,31 @@ let schedule = {};
 let allDates = [];
 
 //////////////////////////////////////////////////
-// LOAD CSV
+// LOAD CSV (ROBUST FIX)
 //////////////////////////////////////////////////
 
 async function loadCSV() {
   const response = await fetch("NHL schedule 2025-26.csv");
   const text = await response.text();
 
-  const lines = text.trim().split("\n");
+  // ✅ Handle Windows + Mac + Linux line endings
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
 
   fullSchedule = lines.map(line => {
     const parts = line.split(",");
+
+    // ✅ Skip bad rows safely
+    if (parts.length !== 3) {
+      console.warn("Bad row skipped:", line);
+      return null;
+    }
+
     return {
       date: parts[0].trim(),
       teamA: parts[1].trim(),
       teamB: parts[2].trim()
     };
-  });
+  }).filter(x => x !== null);
 
   allDates = [...new Set(fullSchedule.map(g => g.date))].sort();
 
@@ -106,11 +114,19 @@ function buildScheduleFromDateRange() {
     const tA = teamMap[game.teamA];
     const tB = teamMap[game.teamB];
 
-    // Debug (optional)
-    // if (!tA || !tB) console.log("Missing mapping:", game);
+    if (!tA || !tB) {
+      console.warn("Mapping failure:", game);
+      return;
+    }
 
-    if (tA) schedule[tA].add(game.date);
-    if (tB) schedule[tB].add(game.date);
+    schedule[tA].add(game.date);
+    schedule[tB].add(game.date);
+  });
+
+  // ✅ DEBUG CHECK (you can remove later)
+  console.log("UNIQUE GAME DAYS PER TEAM:");
+  teams.forEach(t => {
+    console.log(t, schedule[t].size);
   });
 
   updateTable();
@@ -164,10 +180,8 @@ function unionSize(...sets) {
 
 function getColor(v, min, max) {
   let ratio = (v - min) / (max - min || 1);
-
   let g = Math.floor(200 * ratio);
   let r = 255 - g;
-
   return `rgb(${r},${g},120)`;
 }
 
