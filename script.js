@@ -1,30 +1,35 @@
-const teams = [
-  "ANA","ARI","BOS","BUF","CGY","CAR","CHI","COL","CBJ","DAL",
+const teams = [const "ANA","BOS","BUF","CGY","CAR","CHI","COL","CBJ","DAL",
   "DET","EDM","FLA","LAK","MIN","MTL","NSH","NJD","NYI","NYR",
-  "OTT","PHI","PIT","SJS","SEA","STL","TBL","TOR","VAN","VGK","WSH","WPG"
+  "OTT","PHI","PIT","SJS","SEA","STL","TBL","TOR","VAN","VGK","WSH","WPG","ARI"
 ];
 
 const teamSelect = document.getElementById("teamSelect");
+const seasonSelect = document.getElementById("seasonSelect");
 const matrix = document.getElementById("matrix");
 const mostList = document.getElementById("most");
 const leastList = document.getElementById("least");
 
-/*
-Mock schedule:
-Each team gets a set of "days" between 1–200
-In reality, you'll replace this with actual NHL schedule parsing
-*/
-const schedule = {};
+let schedule = {};
 
-teams.forEach(team => {
-  let days = new Set();
-  while (days.size < 84) {
-    days.add(Math.floor(Math.random() * 200));
-  }
-  schedule[team] = days;
-});
+//////////////////////////////////////////////////
+// MOCK DATA (replace later with real schedule)
+//////////////////////////////////////////////////
+function loadMockSeason() {
+  schedule = {};
+  teams.forEach(team => {
+    let days = new Set();
+    while (days.size < 84) {
+      days.add(Math.floor(Math.random() * 200));
+    }
+    schedule[team] = days;
+  });
+}
+loadMockSeason();
 
-// Populate dropdown
+//////////////////////////////////////////////////
+// UI SETUP
+//////////////////////////////////////////////////
+
 teams.slice().sort().forEach(team => {
   let opt = document.createElement("option");
   opt.value = team;
@@ -32,7 +37,18 @@ teams.slice().sort().forEach(team => {
   teamSelect.appendChild(opt);
 });
 
-// Create table header
+// Season dropdown (extensible)
+["2025-26"].forEach(season => {
+  let opt = document.createElement("option");
+  opt.value = season;
+  opt.textContent = season;
+  seasonSelect.appendChild(opt);
+});
+
+//////////////////////////////////////////////////
+// TABLE BUILD
+//////////////////////////////////////////////////
+
 function createTable() {
   matrix.innerHTML = "";
 
@@ -65,16 +81,40 @@ function createTable() {
   });
 }
 
+//////////////////////////////////////////////////
+// CORE MATH
+//////////////////////////////////////////////////
+
 function unionSize(...sets) {
-  let union = new Set();
-  sets.forEach(s => s.forEach(x => union.add(x)));
-  return union.size;
+  let u = new Set();
+  sets.forEach(s => s.forEach(v => u.add(v)));
+  return u.size;
 }
+
+//////////////////////////////////////////////////
+// HEATMAP COLORING
+//////////////////////////////////////////////////
+
+function getColor(value, min, max) {
+  let ratio = (value - min) / (max - min || 1);
+
+  // Green gradient
+  let g = Math.floor(200 * ratio);
+  let r = 255 - g;
+  let b = 100;
+
+  return `rgb(${r},${g},${b})`;
+}
+
+//////////////////////////////////////////////////
+// MAIN UPDATE
+//////////////////////////////////////////////////
 
 function updateTable() {
   const selected = teamSelect.value === "None" ? null : teamSelect.value;
 
-  let diagonalResults = [];
+  let diagValues = [];
+  let offValues = [];
 
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
@@ -87,34 +127,89 @@ function updateTable() {
     td.textContent = val;
 
     if (r === c) {
-      diagonalResults.push({ team: r, value: val });
+      diagValues.push(val);
+    } else {
+      offValues.push(val);
+    }
+
+    td.dataset.value = val;
+  });
+
+  // Compute separate scales
+  let diagMin = Math.min(...diagValues);
+  let diagMax = Math.max(...diagValues);
+
+  let offMin = Math.min(...offValues);
+  let offMax = Math.max(...offValues);
+
+  // Apply colors
+  document.querySelectorAll("#matrix td").forEach(td => {
+    const r = td.dataset.row;
+    const c = td.dataset.col;
+    const val = Number(td.dataset.value);
+
+    if (r === c) {
+      td.style.backgroundColor = getColor(val, diagMin, diagMax);
+    } else {
+      td.style.backgroundColor = getColor(val, offMin, offMax);
     }
   });
 
-  updateSidebar(diagonalResults);
+  updateSidebar(selected);
 }
 
-function updateSidebar(results) {
+//////////////////////////////////////////////////
+// SIDEBAR
+//////////////////////////////////////////////////
+
+function updateSidebar(selected) {
+  let results = teams.map(team => {
+    let sets = [schedule[team]];
+    if (selected) sets.push(schedule[selected]);
+
+    return {
+      team,
+      value: unionSize(...sets)
+    };
+  });
+
+  // Sort descending
   let sorted = results.slice().sort((a, b) => b.value - a.value);
 
+  // MOST (no restriction)
   mostList.innerHTML = "";
-  leastList.innerHTML = "";
-
   sorted.slice(0, 5).forEach(x => {
     let li = document.createElement("li");
     li.textContent = `${x.team}: ${x.value}`;
     mostList.appendChild(li);
   });
 
-  sorted.slice(-5).forEach(x => {
+  // LEAST (exclude selected team)
+  leastList.innerHTML = "";
+  let filtered = selected
+    ? sorted.filter(x => x.team !== selected)
+    : sorted;
+
+  filtered.slice(-5).forEach(x => {
     let li = document.createElement("li");
     li.textContent = `${x.team}: ${x.value}`;
     leastList.appendChild(li);
   });
 }
 
-teamSelect.addEventListener("change", updateTable);
+//////////////////////////////////////////////////
+// EVENTS
+//////////////////////////////////////////////////
 
-// Initialize
+teamSelect.addEventListener("change", updateTable);
+seasonSelect.addEventListener("change", () => {
+  loadMockSeason(); // later load real data per season
+  updateTable();
+});
+
+//////////////////////////////////////////////////
+// INIT
+//////////////////////////////////////////////////
+
 createTable();
 updateTable();
