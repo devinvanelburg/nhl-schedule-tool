@@ -8,29 +8,61 @@ const teams = [
   "OTT","PHI","PIT","SJS","SEA","STL","TBL","TOR","VAN","VGK","WSH","WPG","UTA"
 ];
 
-//////////////////////////////////////////////////
-// TEAM MAP (unchanged)
-//////////////////////////////////////////////////
-
-const teamMap = { /* SAME AS BEFORE */ };
+const teamMap = {
+  "Anaheim Ducks": "ANA",
+  "Boston Bruins": "BOS",
+  "Buffalo Sabres": "BUF",
+  "Calgary Flames": "CGY",
+  "Carolina Hurricanes": "CAR",
+  "Chicago Blackhawks": "CHI",
+  "Colorado Avalanche": "COL",
+  "Columbus Blue Jackets": "CBJ",
+  "Dallas Stars": "DAL",
+  "Detroit Red Wings": "DET",
+  "Edmonton Oilers": "EDM",
+  "Florida Panthers": "FLA",
+  "Los Angeles Kings": "LAK",
+  "Minnesota Wild": "MIN",
+  "Montreal Canadiens": "MTL",
+  "Nashville Predators": "NSH",
+  "New Jersey Devils": "NJD",
+  "New York Islanders": "NYI",
+  "New York Rangers": "NYR",
+  "Ottawa Senators": "OTT",
+  "Philadelphia Flyers": "PHI",
+  "Pittsburgh Penguins": "PIT",
+  "San Jose Sharks": "SJS",
+  "Seattle Kraken": "SEA",
+  "St. Louis Blues": "STL",
+  "Tampa Bay Lightning": "TBL",
+  "Toronto Maple Leafs": "TOR",
+  "Vancouver Canucks": "VAN",
+  "Vegas Golden Knights": "VGK",
+  "Washington Capitals": "WSH",
+  "Winnipeg Jets": "WPG",
+  "Utah Mammoth": "UTA"
+};
 
 //////////////////////////////////////////////////
 // DOM
 //////////////////////////////////////////////////
 
 const teamSelect = document.getElementById("teamSelect");
-const seasonSelect = document.getElementById("seasonSelect");
 const startSelect = document.getElementById("startDate");
 const endSelect = document.getElementById("endDate");
 const matrix = document.getElementById("matrix");
-const rankingList = document.getElementById("most"); // reuse this only
+const rankingList = document.getElementById("most");
+
+//////////////////////////////////////////////////
+// DATA
+//////////////////////////////////////////////////
 
 let fullSchedule = [];
 let schedule = {};
 let allDates = [];
 
 //////////////////////////////////////////////////
-// LOAD CSV (same robust version)
+// LOAD CSV (ROBUST)
 //////////////////////////////////////////////////
 
 async function loadCSV() {
@@ -45,8 +77,8 @@ async function loadCSV() {
 
     return {
       date: parts[0].trim(),
-      teamA: parts[1].trim(),
-      teamB: parts[2].trim()
+      teamA: parts[1],
+      teamB: parts[2]
     };
   }).filter(x => x !== null);
 
@@ -83,13 +115,27 @@ function buildScheduleFromDateRange() {
   fullSchedule.forEach(game => {
     if (game.date < start || game.date > end) return;
 
-    const tA = teamMap[game.teamA];
-    const tB = teamMap[game.teamB];
+    // ✅ CLEAN STRINGS PROPERLY
+    const cleanA = game.teamA.replace(/\s+/g, " ").trim();
+    const cleanB = game.teamB.replace(/\s+/g, " ").trim();
 
-    if (!tA || !tB) return;
+    const tA = teamMap[cleanA];
+    const tB = teamMap[cleanB];
+
+    // ✅ SAFETY + DEBUG
+    if (!tA || !tB) {
+      console.warn("Mapping failed:", cleanA, cleanB);
+      return;
+    }
 
     schedule[tA].add(game.date);
     schedule[tB].add(game.date);
+  });
+
+  // ✅ SANITY CHECK
+  console.log("TEAM GAME DAYS:");
+  teams.forEach(t => {
+    console.log(t, schedule[t].size);
   });
 
   updateTable();
@@ -153,16 +199,16 @@ function getColor(v, min, max) {
 }
 
 //////////////////////////////////////////////////
-// MAIN UPDATE
+// UPDATE TABLE (3 HEATMAP SYSTEM)
 //////////////////////////////////////////////////
 
 function updateTable() {
   const selected = teamSelect.value === "None" ? null : teamSelect.value;
 
-  let selectedVals = []; // row/col heatmap
-  let otherVals = [];    // everything else
+  let selectedVals = [];
+  let otherVals = [];
 
-  // First pass: compute values + categorize
+  // FIRST PASS
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
     const c = td.dataset.col;
@@ -177,7 +223,7 @@ function updateTable() {
     if (!selected) {
       otherVals.push(val);
     } else if (r === selected && c === selected) {
-      // self → ignore
+      // self cell → ignore
     } else if (r === selected || c === selected) {
       selectedVals.push(val);
     } else {
@@ -185,31 +231,30 @@ function updateTable() {
     }
   });
 
-  // Compute scales
   let sMin = Math.min(...selectedVals);
   let sMax = Math.max(...selectedVals);
   let oMin = Math.min(...otherVals);
   let oMax = Math.max(...otherVals);
 
-  // Second pass: apply colors + styles
+  // SECOND PASS
   document.querySelectorAll("#matrix td").forEach(td => {
     const r = td.dataset.row;
     const c = td.dataset.col;
     const val = Number(td.dataset.value);
 
-    // ✅ DEFAULT
+    // reset
     td.style.border = "1px solid #ccc";
 
     if (selected) {
 
-      // ✅ 1. SELF CELL → WHITE
+      // ✅ SELF CELL
       if (r === selected && c === selected) {
         td.style.backgroundColor = "white";
         td.style.border = "3px solid black";
         return;
       }
 
-      // ✅ 2. SELECTED ROW/COLUMN
+      // ✅ SELECTED ROW/COLUMN
       if (r === selected || c === selected) {
         td.style.backgroundColor = getColor(val, sMin, sMax);
         td.style.border = "2px solid black";
@@ -217,13 +262,15 @@ function updateTable() {
       }
     }
 
-    // ✅ 3. ALL OTHER CELLS
+    // ✅ OTHER CELLS
     td.style.backgroundColor = getColor(val, oMin, oMax);
   });
+
+  updateRanking(selected);
 }
 
 //////////////////////////////////////////////////
-// RANKING (NEW)
+// RANKING
 //////////////////////////////////////////////////
 
 function updateRanking(selected) {
@@ -240,7 +287,6 @@ function updateRanking(selected) {
   let sorted = results.sort((a, b) => b.value - a.value);
 
   rankingList.innerHTML = "";
-
   sorted.forEach((x, i) => {
     rankingList.innerHTML += `<li>${i+1}. ${x.team}: ${x.value}</li>`;
   });
@@ -254,14 +300,9 @@ teams.slice().sort().forEach(t => {
   teamSelect.add(new Option(t, t));
 });
 
-["2025-26"].forEach(s => {
-  seasonSelect.add(new Option(s,s));
-});
-
 teamSelect.addEventListener("change", updateTable);
 startSelect.addEventListener("change", buildScheduleFromDateRange);
 endSelect.addEventListener("change", buildScheduleFromDateRange);
 
 createTable();
 loadCSV();
-``
