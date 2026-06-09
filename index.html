@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NHL Schedule Compatibility Tool</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>NHL Schedule Compatibility</h1>
+
+<label for="teamSelect">Team 1:</label>
+<select id="teamSelect">
+  <option value="None">None</option>
+</select>
+
+<div class="container">
+
+  <div class="table-container">
+    <table id="matrix"></table>
+  </div>
+
+  <div class="sidebar">
+    <h3>Most Active Teams</h3>
+    <ul id="most"></ul>
+
+    <h3>Least Active Teams</h3>
+    <ul id="least"></ul>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
