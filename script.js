@@ -63,32 +63,51 @@ let schedule = {};
 let allDates = [];
 
 //////////////////////////////////////////////////
-// LOAD CSV
+// LOAD CSV (FIXED)
 //////////////////////////////////////////////////
 
 async function loadCSV() {
   const res = await fetch("NHL schedule 2025-26.csv");
+
+  if (!res.ok) {
+    console.error("CSV failed to load", res.status);
+    return;
+  }
+
   const text = await res.text();
 
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
 
-  fullSchedule = lines.map(l => {
-    const [date,a,b] = l.split(",");
-    return {
-      date: date.trim(),
-      a: a.trim(),
-      b: b.trim()
-    };
+  fullSchedule = [];
+
+  lines.forEach(line => {
+    const parts = line.split(",");
+
+    if (parts.length !== 3) {
+      console.warn("Bad row skipped:", line);
+      return;
+    }
+
+    const date = parts[0].trim();
+    const a = parts[1].trim();
+    const b = parts[2].trim();
+
+    fullSchedule.push({ date, a, b });
   });
 
+  console.log("✅ Parsed games:", fullSchedule.length);
+
+  // ✅ extract unique dates
   allDates = [...new Set(fullSchedule.map(g => g.date))].sort();
+
+  console.log("✅ Unique dates:", allDates.length);
 
   populateDates();
   buildSchedule();
 }
 
 //////////////////////////////////////////////////
-// DATE DROPDOWNS
+// DATES
 //////////////////////////////////////////////////
 
 function populateDates() {
@@ -100,6 +119,7 @@ function populateDates() {
     endSelect.add(new Option(d, d));
   });
 
+  // ✅ set full season range
   startSelect.selectedIndex = 0;
   endSelect.selectedIndex = allDates.length - 1;
 }
@@ -118,14 +138,20 @@ function buildSchedule() {
   fullSchedule.forEach(g => {
     if (g.date < start || g.date > end) return;
 
-    let tA = teamMap[g.a];
-    let tB = teamMap[g.b];
+    const tA = teamMap[g.a];
+    const tB = teamMap[g.b];
 
-    if (!tA || !tB) return;
+    if (!tA || !tB) {
+      console.warn("Mapping failed:", g);
+      return;
+    }
 
     schedule[tA].add(g.date);
     schedule[tB].add(g.date);
   });
+
+  console.log("✅ Team day counts:");
+  teams.forEach(t => console.log(t, schedule[t].size));
 
   updateTable();
 }
@@ -135,7 +161,7 @@ function buildSchedule() {
 //////////////////////////////////////////////////
 
 function unionSize(a,b,c){
-  let s = new Set();
+  const s = new Set();
   if(a) a.forEach(x => s.add(x));
   if(b) b.forEach(x => s.add(x));
   if(c) c.forEach(x => s.add(x));
@@ -190,7 +216,7 @@ function createTable() {
 }
 
 //////////////////////////////////////////////////
-// UPDATE TABLE (WORKING HEATMAP)
+// UPDATE TABLE
 //////////////////////////////////////////////////
 
 function updateTable() {
@@ -199,10 +225,10 @@ function updateTable() {
   let vals = [];
 
   document.querySelectorAll("#matrix td").forEach(td => {
-    let r = td.dataset.r;
-    let c = td.dataset.c;
+    const r = td.dataset.r;
+    const c = td.dataset.c;
 
-    let val = unionSize(
+    const val = unionSize(
       schedule[r],
       schedule[c],
       selected ? schedule[selected] : null
@@ -213,23 +239,23 @@ function updateTable() {
     vals.push(val);
   });
 
-  let min = Math.min(...vals);
-  let max = Math.max(...vals);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
 
   document.querySelectorAll("#matrix td").forEach(td => {
-    let r = td.dataset.r;
-    let c = td.dataset.c;
-    let val = Number(td.dataset.val);
+    const r = td.dataset.r;
+    const c = td.dataset.c;
+    const val = Number(td.dataset.val);
 
     td.style.backgroundColor = heatColor(val, min, max);
-    td.style.border = "1px solid #ccc";
 
-    if(selected && r === selected && c === selected){
+    if(selected && r===selected && c===selected){
       td.style.backgroundColor = "white";
       td.style.border = "3px solid black";
-    }
-    else if(selected && (r === selected || c === selected)){
+    } else if(selected && (r===selected || c===selected)){
       td.style.border = "2px solid black";
+    } else {
+      td.style.border = "1px solid #ccc";
     }
   });
 }
