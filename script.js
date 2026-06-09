@@ -1,6 +1,4 @@
-//////////////////////////////////////////////////
-// CONSTANTS
-//////////////////////////////////////////////////
+document.addEventListener("DOMContentLoaded", () => {
 
 const teams = [
   "ANA","BOS","BUF","CGY","CAR","CHI","COL","CBJ","DAL",
@@ -43,123 +41,47 @@ const teamMap = {
   "Utah Mammoth": "UTA"
 };
 
-//////////////////////////////////////////////////
-// DOM
-//////////////////////////////////////////////////
-
-const teamSelect = document.getElementById("teamSelect");
-const startSelect = document.getElementById("startDate");
-const endSelect = document.getElementById("endDate");
 const matrix = document.getElementById("matrix");
+const teamSelect = document.getElementById("teamSelect");
 
-//////////////////////////////////////////////////
-// DATA
-//////////////////////////////////////////////////
-
-let fullSchedule = [];
 let schedule = {};
-let allDates = [];
-
-//////////////////////////////////////////////////
-// LOAD CSV
-//////////////////////////////////////////////////
+let fullSchedule = [];
 
 async function loadCSV() {
-  const response = await fetch("NHL schedule 2025-26.csv");
+  const res = await fetch("NHL schedule 2025-26.csv");
+  const text = await res.text();
 
-  if (!response.ok) {
-    alert("CSV failed to load");
-    return;
-  }
+  const lines = text.split(/\r?\n/).filter(l => l);
 
-  const text = await response.text();
+  fullSchedule = lines.map(l => {
+    const [date, a, b] = l.split(",");
+    return { date: date.trim(), a: a.trim(), b: b.trim() };
+  });
 
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-
-  fullSchedule = lines.map(line => {
-    const parts = line.split(",");
-    if (parts.length !== 3) return null;
-
-    return {
-      date: parts[0].trim(),
-      teamA: parts[1].trim(),
-      teamB: parts[2].trim()
-    };
-  }).filter(x => x !== null);
-
-  console.log("Loaded rows:", fullSchedule.length);
-
-  allDates = [...new Set(fullSchedule.map(g => g.date))].sort();
-
-  populateDateDropdowns();
   buildSchedule();
 }
 
-//////////////////////////////////////////////////
-// DATE DROPDOWNS
-//////////////////////////////////////////////////
-
-function populateDateDropdowns() {
-  startSelect.innerHTML = "";
-  endSelect.innerHTML = "";
-
-  allDates.forEach(date => {
-    startSelect.add(new Option(date, date));
-    endSelect.add(new Option(date, date));
-  });
-
-  startSelect.selectedIndex = 0;
-  endSelect.selectedIndex = allDates.length - 1;
-}
-
-//////////////////////////////////////////////////
-// BUILD SCHEDULE
-//////////////////////////////////////////////////
-
 function buildSchedule() {
-  const start = startSelect.value;
-  const end = endSelect.value;
-
   schedule = {};
   teams.forEach(t => schedule[t] = new Set());
 
-  fullSchedule.forEach(game => {
-
-    if (game.date < start || game.date > end) return;
-
-    const tA = teamMap[game.teamA];
-    const tB = teamMap[game.teamB];
-
-    if (!tA || !tB) {
-      console.error("Mapping failed:", game);
-      return;
-    }
-
-    schedule[tA].add(game.date);
-    schedule[tB].add(game.date);
+  fullSchedule.forEach(g => {
+    const tA = teamMap[g.a];
+    const tB = teamMap[g.b];
+    if (tA) schedule[tA].add(g.date);
+    if (tB) schedule[tB].add(g.date);
   });
 
-  console.log("Team counts:");
+  console.log("Check counts:");
   teams.forEach(t => console.log(t, schedule[t].size));
 
   updateTable();
 }
 
-//////////////////////////////////////////////////
-// UNION FUNCTION
-//////////////////////////////////////////////////
-
-function unionSize(a, b, c) {
-  let u = new Set();
-  if (a) a.forEach(x => u.add(x));
-  if (b) b.forEach(x => u.add(x));
-  if (c) c.forEach(x => u.add(x));
-  return u.size;
+function unionSize(a, b) {
+  const s = new Set([...a, ...b]);
+  return s.size;
 }
-
-//////////////////////////////////////////////////
-// TABLE
-//////////////////////////////////////////////////
 
 function createTable() {
   matrix.innerHTML = "";
@@ -167,9 +89,9 @@ function createTable() {
   let header = document.createElement("tr");
   header.appendChild(document.createElement("th"));
 
-  teams.forEach(team => {
+  teams.forEach(t => {
     let th = document.createElement("th");
-    th.textContent = team;
+    th.textContent = t;
     header.appendChild(th);
   });
 
@@ -184,8 +106,8 @@ function createTable() {
 
     teams.forEach(c => {
       let td = document.createElement("td");
-      td.dataset.row = r;
-      td.dataset.col = c;
+      td.dataset.r = r;
+      td.dataset.c = c;
       tr.appendChild(td);
     });
 
@@ -193,76 +115,18 @@ function createTable() {
   });
 }
 
-//////////////////////////////////////////////////
-// SIMPLE HEATMAP
-//////////////////////////////////////////////////
-
-function getColor(v, min, max) {
-  let ratio = (v - min) / (max - min || 1);
-  let g = Math.floor(200 * ratio);
-  let r = 255 - g;
-  return `rgb(${r},${g},120)`;
-}
-
-//////////////////////////////////////////////////
-// UPDATE TABLE
-//////////////////////////////////////////////////
-
 function updateTable() {
-  const selected = teamSelect.value === "None" ? null : teamSelect.value;
-
-  let values = [];
-
-  // compute values
   document.querySelectorAll("#matrix td").forEach(td => {
-    let r = td.dataset.row;
-    let c = td.dataset.col;
+    const r = td.dataset.r;
+    const c = td.dataset.c;
 
-    let val = unionSize(
-      schedule[r],
-      schedule[c],
-      selected ? schedule[selected] : null
-    );
-
-    td.textContent = val;
-    td.dataset.val = val;
-    values.push(val);
-  });
-
-  let min = Math.min(...values);
-  let max = Math.max(...values);
-
-  // color
-  document.querySelectorAll("#matrix td").forEach(td => {
-    let r = td.dataset.row;
-    let c = td.dataset.col;
-    let val = Number(td.dataset.val);
-
-    td.style.backgroundColor = getColor(val, min, max);
-    td.style.border = "1px solid #ccc";
-
-    // simple selection highlight
-    if (selected && (r === selected || c === selected)) {
-      td.style.border = "2px solid black";
-    }
-
-    if (selected && r === selected && c === selected) {
-      td.style.backgroundColor = "white";
-    }
+    td.textContent = unionSize(schedule[r], schedule[c]);
   });
 }
 
-//////////////////////////////////////////////////
-// INIT
-//////////////////////////////////////////////////
-
-teams.slice().sort().forEach(t => {
-  teamSelect.add(new Option(t, t));
-});
-
-teamSelect.addEventListener("change", updateTable);
-startSelect.addEventListener("change", buildSchedule);
-endSelect.addEventListener("change", buildSchedule);
+teams.sort().forEach(t => teamSelect.add(new Option(t, t)));
 
 createTable();
 loadCSV();
+
+});
